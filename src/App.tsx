@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
@@ -10,122 +12,186 @@ import Workflows from './pages/Workflows';
 import AIInsights from './pages/AIInsights';
 import Companies from './pages/Companies';
 import Inbox from './pages/Inbox';
+import Activities from './pages/Activities';
+import Tasks from './pages/Tasks';
+import Documents from './pages/Documents';
+import Reports from './pages/Reports';
+import Team from './pages/Team';
+import Settings from './pages/Settings';
 import { Card, Button } from './components/UI';
 
-// Basic Placeholder Page
-const PlaceholderPage = ({ name }: { name: string }) => (
-  <AppShell title={name}>
-    <Card className="p-12 flex flex-col items-center justify-center text-center space-y-4">
-      <div className="h-16 w-16 rounded-full bg-primary/5 flex items-center justify-center text-primary">
-        <span className="text-2xl font-bold">O</span>
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted-surface">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
-      <h1 className="text-2xl font-display">{name}</h1>
-      <p className="text-text-secondary max-w-sm">
-        We're currently building the {name} core module. This will be part of the Ozofi premium suite.
-      </p>
-      <Button variant="outline" onClick={() => window.history.back()}>Go Back</Button>
-    </Card>
-  </AppShell>
-);
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        
-        <Route 
-          path="/dashboard" 
-          element={
-            <AppShell title="Dashboard">
-              <Dashboard />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/leads" 
-          element={
-            <AppShell title="Leads">
-              <Leads />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/contacts" 
-          element={
-            <AppShell title="Contacts">
-              <Contacts />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/companies" 
-          element={
-            <AppShell title="Accounts">
-              <Companies />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/deals" 
-          element={
-            <AppShell title="Pipeline">
-              <Deals />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/inbox" 
-          element={
-            <AppShell title="Inbox">
-              <Inbox />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/activities" 
-          element={<PlaceholderPage name="Activities" />} 
-        />
-        <Route 
-          path="/tasks" 
-          element={<PlaceholderPage name="Tasks" />} 
-        />
-        <Route 
-          path="/documents" 
-          element={<PlaceholderPage name="Documents" />} 
-        />
-        <Route 
-          path="/reports" 
-          element={<PlaceholderPage name="Reports" />} 
-        />
-        <Route 
-          path="/workflows" 
-          element={
-            <AppShell title="Workflows">
-              <Workflows />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/insights" 
-          element={
-            <AppShell title="AI Insights">
-              <AIInsights />
-            </AppShell>
-          } 
-        />
-        <Route 
-          path="/team" 
-          element={<PlaceholderPage name="Team" />} 
-        />
-        <Route 
-          path="/settings" 
-          element={<PlaceholderPage name="Settings" />} 
-        />
-        
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Dashboard">
+                    <Dashboard />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/leads" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Leads">
+                    <Leads />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/contacts" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Contacts">
+                    <Contacts />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/companies" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Accounts">
+                    <Companies />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/deals" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Pipeline">
+                    <Deals />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/inbox" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Inbox">
+                    <Inbox />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/activities" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Activity Hub">
+                    <Activities />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/tasks" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Tasks">
+                    <Tasks />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/documents" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Documents">
+                    <Documents />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/reports" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Reports">
+                    <Reports />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/workflows" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Workflows">
+                    <Workflows />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/insights" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="AI Insights">
+                    <AIInsights />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/team" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Team">
+                    <Team />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <AppShell title="Settings">
+                    <Settings />
+                  </AppShell>
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

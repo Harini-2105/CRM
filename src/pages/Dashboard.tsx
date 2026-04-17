@@ -22,14 +22,12 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
 } from 'recharts';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { leadService, Lead } from '../services/leadService';
+import { dealService, Deal } from '../services/dealService';
 
 const REVENUE_DATA = [
   { name: 'Mon', revenue: 4000 },
@@ -41,21 +39,12 @@ const REVENUE_DATA = [
   { name: 'Sun', revenue: 3490 },
 ];
 
-const PIPELINE_DATA = [
-  { name: 'Discovery', value: 400 },
-  { name: 'Qualified', value: 300 },
-  { name: 'Proposal', value: 300 },
-  { name: 'Negotiation', value: 200 },
-];
-
-const COLORS = ['#4F46E5', '#6366F1', '#8B5CF6', '#10B981'];
-
 const StatCard = ({ title, value, change, trend, icon: Icon }: any) => (
   <Card className="p-6">
     <div className="flex items-start justify-between">
       <div>
         <p className="text-sm font-medium text-text-secondary">{title}</p>
-        <h3 className="text-2xl font-bold mt-1">{value}</h3>
+        <h3 className="text-2xl font-bold mt-1 text-text-strong">{value}</h3>
       </div>
       <div className="p-2 bg-primary/5 rounded-lg">
         <Icon size={20} className="text-primary" />
@@ -77,14 +66,76 @@ const StatCard = ({ title, value, change, trend, icon: Icon }: any) => (
 );
 
 export default function Dashboard() {
+  const { profile } = useAuth();
+  const [leads, setLeads] = React.useState<Lead[]>([]);
+  const [deals, setDeals] = React.useState<Deal[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!profile?.orgId) return;
+
+    const unsubscribeLeads = leadService.subscribeToLeads(profile.orgId, (f) => setLeads(f));
+    const unsubscribeDeals = dealService.subscribeToDeals(profile.orgId, (f) => setDeals(f));
+
+    setLoading(false);
+    return () => {
+      unsubscribeLeads();
+      unsubscribeDeals();
+    };
+  }, [profile?.orgId]);
+
+  const totalPipelineValue = deals.reduce((acc, deal) => acc + (deal.value || 0), 0);
+  const activeLeadsCount = leads.filter(l => l.status !== 'Closed - Won').length;
+  const winRate = deals.length > 0 
+    ? (deals.filter(d => d.status === 'won').length / deals.length) * 100 
+    : 0;
+
+  const seedData = async () => {
+    if (!profile?.orgId) return;
+    setLoading(true);
+    
+    // Seed some leads
+    const demoLeads = [
+      { firstName: 'Sarah', lastName: 'Chen', company: 'Stripe', email: 'sarah@stripe.com', status: 'Qualified', source: 'LinkedIn', score: 92 },
+      { firstName: 'James', lastName: 'Wilson', company: 'Airbnb', email: 'james@airbnb.com', status: 'Prospect', source: 'Web Referral', score: 65 },
+      { firstName: 'Elena', lastName: 'Rodriguez', company: 'Auth0', email: 'elena@auth0.com', status: 'Contacted', source: 'Conference', score: 78 }
+    ];
+
+    for (const l of demoLeads) {
+      await leadService.createLead({
+        ...l,
+        orgId: profile.orgId,
+        ownerId: profile.uid,
+        phone: '555-0000'
+      });
+    }
+
+    // Seed some deals
+    const demoDeals = [
+      { title: 'Enterprise Expansion', companyId: 'stripe_id', value: 85000, status: 'open', stageId: 'proposal', pipelineId: 'sales', orgId: profile.orgId, ownerId: profile.uid, currency: 'USD', contactId: 'sarah_id' },
+      { title: 'API Integration', companyId: 'airbnb_id', value: 24000, status: 'won', stageId: 'closed', pipelineId: 'sales', orgId: profile.orgId, ownerId: profile.uid, currency: 'USD', contactId: 'james_id' }
+    ];
+
+    for (const d of demoDeals) {
+      await dealService.createDeal(d as any);
+    }
+
+    setLoading(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display">Welcome back, Jane</h1>
+          <h1 className="text-3xl font-display">Welcome back, {profile?.displayName.split(' ')[0]}</h1>
           <p className="text-text-secondary">Here's what's happening with your pipeline today.</p>
         </div>
         <div className="flex items-center gap-2">
+          {leads.length === 0 && (
+            <Button variant="outline" size="sm" onClick={seedData} disabled={loading} className="gap-2 border-dashed border-primary text-primary">
+              <Zap size={16} /> Seed Demo Data
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-2">
             <Calendar size={16} /> Last 30 days
           </Button>
@@ -96,9 +147,27 @@ export default function Dashboard() {
 
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <StatCard title="Total Pipeline" value="$4,284,500" change="12%" trend="up" icon={DollarSign} />
-        <StatCard title="Active Deals" value="156" change="4 new" trend="up" icon={Zap} />
-        <StatCard title="Win Rate" value="64.2%" change="0.5%" trend="down" icon={TrendingUp} />
+        <StatCard 
+          title="Total Pipeline" 
+          value={`$${totalPipelineValue.toLocaleString()}`} 
+          change="8%" 
+          trend="up" 
+          icon={DollarSign} 
+        />
+        <StatCard 
+          title="Active Leads" 
+          value={activeLeadsCount} 
+          change={`${leads.length - activeLeadsCount} new`} 
+          trend="up" 
+          icon={Zap} 
+        />
+        <StatCard 
+          title="Win Rate" 
+          value={`${winRate.toFixed(1)}%`} 
+          change="2.4%" 
+          trend="up" 
+          icon={TrendingUp} 
+        />
       </div>
 
       {/* AI Insights Bar */}
@@ -166,27 +235,29 @@ export default function Dashboard() {
                   <thead>
                     <tr className="bg-muted-surface border-b border-border">
                       <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Deal Name</th>
-                      <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Company</th>
                       <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Value</th>
-                      <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Stage</th>
-                      <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Probability</th>
+                      <th className="px-6 py-3 font-bold text-[11px] text-text-muted uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    <tr>
-                      <td className="px-6 py-4 text-sm font-bold text-text-main">Global Expansion</td>
-                      <td className="px-6 py-4 text-sm text-text-muted">Stripe Inc.</td>
-                      <td className="px-6 py-4 text-sm font-bold">$450,000</td>
-                      <td className="px-6 py-4"><Badge variant="success">Negotiation</Badge></td>
-                      <td className="px-6 py-4 text-sm">85%</td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 text-sm font-bold text-text-main">Enterprise Cloud</td>
-                      <td className="px-6 py-4 text-sm text-text-muted">Acme Corp</td>
-                      <td className="px-6 py-4 text-sm font-bold">$125,000</td>
-                      <td className="px-6 py-4"><Badge variant="primary">Proposal</Badge></td>
-                      <td className="px-6 py-4 text-sm">60%</td>
-                    </tr>
+                    {deals.slice(0, 5).map(deal => (
+                      <tr key={deal.id}>
+                        <td className="px-6 py-4 text-sm font-bold text-text-main">{deal.title}</td>
+                        <td className="px-6 py-4 text-sm font-bold">${deal.value.toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                          <Badge variant={deal.status === 'won' ? 'success' : deal.status === 'lost' ? 'danger' : 'primary'}>
+                            {deal.status.toUpperCase()}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                    {deals.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-8 text-center text-text-secondary text-sm italic">
+                          No active deals found.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                </table>
              </div>

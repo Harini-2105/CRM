@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: organizations
+    // Fields: name, createdAt, branding (logoUrl, colors)
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields: email, displayName, orgId, role, status, createdAt
+    //
+    // Collection: leads
+    // Fields: orgId, firstName, lastName, email, phone, company, status, source, ownerId, score, createdAt, updatedAt
+    //
+    // Collection: deals
+    // Fields: orgId, title, value, currency, pipelineId, stageId, status, ownerId, contactId, companyId, expectedCloseDate, createdAt, updatedAt
+    //
+    // Collection: tasks
+    // Fields: orgId, title, description, dueDate, status, assigneeId, linkedEntityType, linkedEntityId, createdAt
+    //
+    // Collection: activities
+    // Fields: orgId, type, subject, content, ownerId, linkedEntityType, linkedEntityId, timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUserEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role in ['super_admin', 'org_admin'] || 
+         (request.auth.token.email == "deviharini947@gmail.com" && isUserEmailVerified()));
+    }
+
+    function isOrgMember(orgId) {
+      return isAuthenticated() && getUserData().orgId == orgId;
+    }
+
+    function isOwner(ownerId) {
+      return isAuthenticated() && request.auth.uid == ownerId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function fieldUnchanged(field) {
+      return !(field in request.resource.data) || request.resource.data[field] == resource.data[field];
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.email is string && isValidEmail(data.email) &&
+             data.displayName is string &&
+             data.orgId is string &&
+             data.role in ['super_admin', 'org_admin', 'manager', 'sales_rep', 'support_rep', 'viewer'] &&
+             data.status in ['active', 'inactive', 'deleted'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidLead(data) {
+      return data.orgId is string &&
+             data.email is string && isValidEmail(data.email) &&
+             data.status is string &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidDeal(data) {
+      return data.orgId is string &&
+             data.title is string &&
+             data.status in ['open', 'won', 'lost'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidTask(data) {
+      return data.orgId is string &&
+             data.title is string &&
+             data.status in ['pending', 'completed'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isOrgMember(orgId) || isAdmin();
+      allow create: if isAdmin();
+      allow update: if (isOrgMember(orgId) && getUserData().role in ['org_admin', 'manager']) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOrgMember(resource.data.orgId) || request.auth.uid == userId || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin()) && 
+                      isValidUser(request.resource.data) &&
+                      fieldUnchanged('orgId') &&
+                      (isAdmin() || fieldUnchanged('role'));
+    }
+
+    match /leads/{leadId} {
+      allow read: if isOrgMember(resource.data.orgId) || isAdmin();
+      allow create: if isAuthenticated() && isOrgMember(request.resource.data.orgId) && isValidLead(request.resource.data);
+      allow update: if isAuthenticated() && isOrgMember(resource.data.orgId) && isValidLead(request.resource.data) &&
+                      fieldUnchanged('orgId') && fieldUnchanged('createdAt');
+      allow delete: if isAdmin() || (isOrgMember(resource.data.orgId) && getUserData().role in ['org_admin', 'manager']);
+    }
+
+    match /deals/{dealId} {
+      allow read: if isOrgMember(resource.data.orgId) || isAdmin();
+      allow create: if isAuthenticated() && isOrgMember(request.resource.data.orgId) && isValidDeal(request.resource.data);
+      allow update: if isAuthenticated() && isOrgMember(resource.data.orgId) && isValidDeal(request.resource.data) &&
+                      fieldUnchanged('orgId') && fieldUnchanged('createdAt');
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isOrgMember(resource.data.orgId) || isAdmin();
+      allow create: if isAuthenticated() && isOrgMember(request.resource.data.orgId) && isValidTask(request.resource.data);
+      allow update: if isAuthenticated() && isOrgMember(resource.data.orgId) && isValidTask(request.resource.data) &&
+                      fieldUnchanged('orgId') && fieldUnchanged('createdAt');
+    }
+
+    match /activities/{activityId} {
+      allow read: if isOrgMember(resource.data.orgId) || isAdmin();
+      allow create: if isAuthenticated() && isOrgMember(request.resource.data.orgId);
+    }
+  }
+}

@@ -4,27 +4,62 @@ import {
   GitBranch, 
   Plus, 
   Play, 
-  Settings, 
   MoreHorizontal, 
   Search,
   Zap,
   Clock,
   Mail,
   UserPlus,
-  AlertCircle
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
-
-const WORKFLOWS = [
-  { id: 1, name: 'New Lead Welcome', status: 'Active', trigger: 'Lead Created', steps: 4, lastRun: '2m ago', success: '98%' },
-  { id: 2, name: 'High Value Alert', status: 'Active', trigger: 'Deal Value > $10k', steps: 2, lastRun: '15h ago', success: '100%' },
-  { id: 3, name: 'Dormant Lead Re-engagement', status: 'Draft', trigger: 'No activity for 30d', steps: 5, lastRun: '-', success: '-' },
-  { id: 4, name: 'Contract Signed Notification', status: 'Active', trigger: 'Deal Won', steps: 3, lastRun: '1d ago', success: '96%' },
-];
+import { useAuth } from '../contexts/AuthContext';
+import { workflowService, Workflow } from '../services/workflowService';
+import { WorkflowModal } from '../components/WorkflowModal';
 
 export default function Workflows() {
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = React.useState('all');
+  const [workflows, setWorkflows] = React.useState<Workflow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = React.useState<Workflow | null>(null);
+
+  React.useEffect(() => {
+    if (!profile?.orgId) return;
+
+    const unsubscribe = workflowService.subscribeToWorkflows(profile.orgId, (fetched) => {
+      setWorkflows(fetched);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [profile?.orgId]);
+
+  const handleEdit = (wf: Workflow) => {
+    setSelectedWorkflow(wf);
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setSelectedWorkflow(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this automation?')) {
+      await workflowService.deleteWorkflow(id);
+    }
+  };
+
+  const filteredWorkflows = workflows.filter(wf => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'active') return wf.status === 'active';
+    if (activeTab === 'drafts') return wf.status === 'draft' || wf.status === 'paused';
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -37,14 +72,13 @@ export default function Workflows() {
           <Button variant="outline" size="sm" className="gap-2">
             <Play size={16} /> Test Active
           </Button>
-          <Button variant="primary" size="sm" className="gap-2">
+          <Button variant="primary" size="sm" className="gap-2" onClick={openAddModal}>
             <Plus size={16} /> Create Workflow
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Mini-Stats */}
         <div className="lg:col-span-1 space-y-4">
           <Card className="p-4 bg-primary/5 border-primary/20">
              <div className="flex items-center gap-3 mb-4">
@@ -53,13 +87,13 @@ export default function Workflows() {
              </div>
              <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-text-secondary">Actions executed today</p>
-                  <p className="text-2xl font-bold">1,284</p>
+                  <p className="text-xs text-text-secondary">Workflows active</p>
+                  <p className="text-2xl font-bold">{workflows.filter(w=>w.status==='active').length}</p>
                 </div>
                 <div className="h-2 w-full bg-border rounded-full overflow-hidden">
-                  <div className="h-full bg-primary w-[70%]" />
+                  <div className="h-full bg-primary w-[40%]" />
                 </div>
-                <p className="text-[10px] text-text-secondary">70% of weekly quota reached.</p>
+                <p className="text-[10px] text-text-secondary">Dynamic optimization in effect.</p>
              </div>
           </Card>
 
@@ -76,7 +110,6 @@ export default function Workflows() {
           </Card>
         </div>
 
-        {/* Main Workflow Content */}
         <div className="lg:col-span-3 space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-px">
             {['All', 'Active', 'Drafts', 'Templates'].map(tab => (
@@ -97,115 +130,71 @@ export default function Workflows() {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {WORKFLOWS.map((workflow) => (
-              <Card key={workflow.id} className="p-5 hover:border-primary/50 transition-all cursor-pointer group">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-muted-surface flex items-center justify-center group-hover:bg-primary/5 transition-colors">
-                      <GitBranch size={24} className="text-text-secondary group-hover:text-primary" />
+            {loading ? (
+              <div className="p-12 text-center text-text-muted">Loading automations...</div>
+            ) : filteredWorkflows.length > 0 ? (
+              filteredWorkflows.map((workflow) => (
+                <Card key={workflow.id} className="p-5 hover:border-primary/50 transition-all cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4" onClick={() => handleEdit(workflow)}>
+                      <div className="h-12 w-12 rounded-xl bg-muted-surface flex items-center justify-center group-hover:bg-primary/5 transition-colors">
+                        <GitBranch size={24} className="text-text-secondary group-hover:text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-text-strong">{workflow.name}</h4>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary">
+                          <span className="flex items-center gap-1 uppercase tracking-tighter"><Zap size={12} /> {workflow.trigger}</span>
+                          <span className="w-1 h-1 rounded-full bg-border" />
+                          <span className="uppercase tracking-tighter">{workflow.action}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-text-strong">{workflow.name}</h4>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary">
-                        <span className="flex items-center gap-1"><Zap size={12} /> {workflow.trigger}</span>
-                        <span className="w-1 h-1 rounded-full bg-border" />
-                        <span>{workflow.steps} steps</span>
+                    <div className="flex items-center gap-6">
+                      <Badge variant={workflow.status === 'active' ? 'success' : 'neutral'}>{workflow.status}</Badge>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-primary" onClick={(e) => { e.stopPropagation(); handleEdit(workflow); }}>
+                          <Edit2 size={16} />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-danger" onClick={(e) => { e.stopPropagation(); handleDelete(workflow.id!); }}>
+                          <Trash2 size={16} />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right hidden sm:block">
-                       <p className="text-[10px] font-bold text-text-secondary uppercase">Success Rate</p>
-                       <p className="text-sm font-bold text-text-strong">{workflow.success}</p>
-                    </div>
-                    <div className="text-right hidden sm:block">
-                       <p className="text-[10px] font-bold text-text-secondary uppercase">Last Run</p>
-                       <p className="text-sm font-bold text-text-strong">{workflow.lastRun}</p>
-                    </div>
-                    <Badge variant={workflow.status === 'Active' ? 'success' : 'neutral'}>{workflow.status}</Badge>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal size={18} />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            ) : (
+              <div className="p-12 text-center text-text-muted border border-dashed border-border rounded-xl">
+                 No workflows found in this category.
+              </div>
+            )}
           </div>
 
-          {/* Workflow Builder Teaser */}
           <div className="mt-8">
-            <h3 className="text-lg font-bold mb-4">Quick View: Lead Qualification Builder</h3>
+            <h3 className="text-lg font-bold mb-4">Lead Qualification Logic</h3>
             <div className="relative border-2 border-dashed border-border rounded-2xl p-8 bg-muted-surface/20 overflow-hidden">
                <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
-               
                <div className="relative flex flex-col items-center gap-6">
-                  {/* Trigger Node */}
-                  <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm">
-                    <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                      <UserPlus size={16} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-bold uppercase text-text-secondary">Trigger</p>
-                      <p className="text-xs font-bold">Lead Created</p>
-                    </div>
+                  <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm scale-90 opacity-60">
+                    <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary"><UserPlus size={16} /></div>
+                    <div className="flex-1"><p className="text-[10px] font-bold uppercase text-text-secondary">Trigger</p><p className="text-xs font-bold">New Lead</p></div>
                   </div>
-
-                  <div className="h-8 w-px bg-border flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
+                  <div className="h-4 w-px bg-border" />
+                  <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm border-l-4 border-l-primary">
+                    <div className="h-8 w-8 rounded-md bg-ai-accent/10 flex items-center justify-center text-ai-accent"><Zap size={16} /></div>
+                    <div className="flex-1"><p className="text-[10px] font-bold uppercase text-text-secondary">Action</p><p className="text-xs font-bold">Intelligent Scoring</p></div>
                   </div>
-
-                  {/* Condition Node */}
-                  <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm">
-                    <div className="h-8 w-8 rounded-md bg-warning/10 flex items-center justify-center text-warning">
-                      <Zap size={16} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-bold uppercase text-text-secondary">Condition</p>
-                      <p className="text-xs font-bold">Value {'>'} $5,000</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-24 relative">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-full w-px bg-border -z-10" />
-                    
-                    {/* Action Nodes */}
-                    <div className="flex flex-col items-center gap-6">
-                       <div className="h-0.5 w-12 bg-border relative">
-                          <div className="absolute top-1/2 left-0 -translate-y-1/2 w-2 h-2 rounded-full bg-border" />
-                       </div>
-                       <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm border-l-4 border-l-success">
-                        <div className="h-8 w-8 rounded-md bg-success/10 flex items-center justify-center text-success">
-                          <Mail size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[10px] font-bold uppercase text-text-secondary">Action</p>
-                          <p className="text-xs font-bold">Email: High Intent</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center gap-6">
-                       <div className="w-48 p-3 rounded-lg bg-surface border border-border flex items-center gap-3 shadow-sm border-l-4 border-l-danger">
-                        <div className="h-8 w-8 rounded-md bg-text-secondary/10 flex items-center justify-center text-text-secondary">
-                          <Clock size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[10px] font-bold uppercase text-text-secondary">Action</p>
-                          <p className="text-xs font-bold">Wait 48 Hours</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-               </div>
-               
-               <div className="absolute bottom-4 right-4 flex gap-2">
-                 <Button variant="outline" size="sm" className="bg-surface">Cancel</Button>
-                 <Button variant="primary" size="sm">Publish Workflow</Button>
                </div>
             </div>
           </div>
         </div>
       </div>
+
+      <WorkflowModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        workflow={selectedWorkflow} 
+      />
     </div>
   );
 }

@@ -57,7 +57,7 @@ export const Badge = ({ className, variant = 'neutral', ...props }: React.HTMLAt
     success: 'bg-[#D1FAE5] text-[#065F46] border-none',
     warning: 'bg-warning/10 text-warning border-warning/20',
     danger: 'bg-danger/10 text-danger border-danger/20',
-    primary: 'bg-[#E0E7FF] text-[#3730A3] border-none',
+    primary: 'bg-primary-light text-primary border-none',
   };
 
   return (
@@ -97,3 +97,42 @@ export const Avatar = ({ src, alt, fallback, className }: { src?: string; alt?: 
     )}
   </div>
 );
+
+export const Label = ({ className, children, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
+  <label
+    className={cn('text-sm font-semibold text-text-strong leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70', className)}
+    {...props}
+  >
+    {children}
+  </label>
+);
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  ({ className, ...props }, ref) => (
+    <textarea
+      ref={ref}
+      className={cn(
+        'flex min-h-[80px] w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-text-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all focus:border-primary',
+        className
+      )}
+      {...props}
+    />
+  )
+);
+Textarea.displayName = 'Textarea';
+
+export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
+  ({ className, children, ...props }, ref) => (
+    <select
+      ref={ref}
+      className={cn(
+        'flex h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all focus:border-primary appearance-none bg-[url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")] bg-[length:16px] bg-[right_12px_center] bg-no-repeat pr-10',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  )
+);
+Select.displayName = 'Select';

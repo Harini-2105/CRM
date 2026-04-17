@@ -2,14 +2,35 @@ import * as React from 'react';
 import { Button, Input, Card, Badge, Avatar } from '../components/UI';
 import { motion } from 'motion/react';
 import { Sparkles, ShieldCheck, Zap, ArrowRight, CircleCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { OzofiLogo } from '../components/Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { signIn, user, loading } = useAuth();
+  const [authError, setAuthError] = React.useState<string | null>(null);
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setAuthError(null);
+      await signIn();
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      setAuthError('Authentication failed. Please try again.');
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/dashboard');
+    // In a real app, this would be email/password auth
+    // For this demo, we'll just show the Google option
+    handleGoogleSignIn();
   };
 
   return (
@@ -17,17 +38,21 @@ export default function Login() {
       {/* Left Pane - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-12 md:px-24 xl:px-48 bg-surface z-10">
         <div className="max-w-md w-full mx-auto">
-          <div className="flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">O</span>
-            </div>
-            <span className="font-display font-bold text-2xl tracking-tighter text-text-strong">Ozofi CRM</span>
+          <div className="flex items-center gap-3 mb-12">
+            <OzofiLogo size={42} />
+            <span className="font-display font-bold text-3xl tracking-tight text-text-strong italic">ozofi</span>
           </div>
 
           <div className="space-y-2 mb-8">
             <h1 className="text-4xl font-display font-bold">Welcome back</h1>
             <p className="text-text-secondary">Enter your credentials to access your account.</p>
           </div>
+
+          {authError && (
+            <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm font-bold">
+              {authError}
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1">
@@ -47,8 +72,8 @@ export default function Login() {
               <label htmlFor="remember" className="text-sm text-text-secondary cursor-pointer">Remember me for 30 days</label>
             </div>
 
-            <Button type="submit" className="w-full h-11 text-base font-bold">
-              Sign In
+            <Button type="submit" className="w-full h-11 text-base font-bold" disabled={loading}>
+              {loading ? 'Processing...' : 'Sign In'}
             </Button>
           </form>
 
@@ -62,11 +87,16 @@ export default function Login() {
           </div>
 
           <div className="mt-6 flex gap-4">
-            <Button variant="outline" className="flex-1 h-11 gap-2 font-bold">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-11 gap-2 font-bold"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
               Google
             </Button>
-            <Button variant="outline" className="flex-1 h-11 gap-2 font-bold">
+            <Button variant="outline" className="flex-1 h-11 gap-2 font-bold disabled:opacity-30" disabled>
               <img src="https://github.com/favicon.ico" alt="GitHub" className="w-4 h-4" />
               GitHub
             </Button>

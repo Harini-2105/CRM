@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button, Avatar, Input } from './UI';
+import { OzofiLogo } from './Logo';
 import { motion, AnimatePresence } from 'motion/react';
 
 const NAV_GROUPS = [
@@ -68,34 +69,32 @@ const NAV_GROUPS = [
 export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (c: boolean) => void }) => {
   return (
     <motion.div
-      animate={{ width: collapsed ? 80 : 240 }}
-      className="h-screen bg-surface border-r border-border flex flex-col sticky top-0 z-50 overflow-hidden py-6"
+      animate={{ width: collapsed ? 80 : 260 }}
+      className="h-screen bg-text-main flex flex-col sticky top-0 z-50 overflow-hidden py-8"
     >
-      <div className="px-6 pb-8 flex items-center justify-between">
+      <div className="px-6 pb-10 flex items-center justify-between">
         {!collapsed && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-3"
           >
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-lg">O</span>
-            </div>
-            <span className="font-display font-bold text-xl text-text-main tracking-tight">Ozofi CRM</span>
+            <OzofiLogo size={34} />
+            <span className="font-display font-bold text-2xl text-white tracking-tight">ozofi</span>
           </motion.div>
         )}
         {collapsed && (
-          <div className="mx-auto w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-             <span className="text-white font-bold text-lg">O</span>
+          <div className="mx-auto">
+             <OzofiLogo size={34} />
           </div>
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-0 py-0 space-y-6 scrollbar-hide">
+      <nav className="flex-1 overflow-y-auto px-0 py-0 space-y-8 scrollbar-hide">
         {NAV_GROUPS.map((group, groupIdx) => (
-          <div key={groupIdx} className="space-y-0">
+          <div key={groupIdx} className="space-y-1">
             {!collapsed && (
-              <h3 className="px-6 text-[11px] font-bold uppercase tracking-wider text-text-muted mb-2">
+              <h3 className="px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-3">
                 {group.label}
               </h3>
             )}
@@ -104,20 +103,20 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) => cn(
-                  'flex items-center gap-3 px-6 py-2.5 transition-all text-sm font-medium',
-                  'hover:text-primary group relative',
-                  isActive ? 'bg-primary-light text-primary border-r-[3px] border-primary' : 'text-text-muted'
+                  'flex items-center gap-4 px-6 py-3 transition-all text-[15px] font-medium',
+                  'hover:text-white group relative',
+                  isActive ? 'bg-primary/20 text-white border-l-4 border-primary' : 'text-white/50'
                 )}
               >
                 {({ isActive }) => (
                   <>
-                    <item.icon size={18} className={cn(
+                    <item.icon size={20} className={cn(
                       'transition-colors',
-                      isActive ? 'text-primary' : 'text-text-muted/70 group-hover:text-primary'
+                      isActive ? 'text-white' : 'text-white/30 group-hover:text-white'
                     )} />
                     {!collapsed && <span>{item.name}</span>}
                     {collapsed && (
-                      <div className="absolute left-full ml-6 px-2 py-1 bg-text-main text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                      <div className="absolute left-full ml-6 px-3 py-1.5 bg-white text-text-main text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-xl pointer-events-none z-50 whitespace-nowrap">
                         {item.name}
                       </div>
                     )}
@@ -129,13 +128,15 @@ export const Sidebar = ({ collapsed, setCollapsed }: { collapsed: boolean; setCo
         ))}
       </nav>
 
-      <div className="px-6 pt-4 border-t border-border mt-auto">
-        <div className={cn("flex items-center gap-3", collapsed ? "justify-center" : "")}>
-          <div className="w-8 h-8 rounded-full bg-border shrink-0" />
+      <div className="px-6 pt-6 border-t border-white/10 mt-auto">
+        <div className={cn("flex items-center gap-4", collapsed ? "justify-center" : "")}>
+          <div className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
+             <Users size={18} className="text-white/50" />
+          </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-text-main truncate">Jane Doe</p>
-              <p className="text-[11px] text-text-muted truncate">jane@ozofi.com</p>
+              <p className="text-sm font-bold text-white truncate">Jane Doe</p>
+              <p className="text-[11px] text-white/40 truncate">jane@ozofi.com</p>
             </div>
           )}
         </div>
