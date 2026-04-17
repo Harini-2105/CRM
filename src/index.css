@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+
+  --color-primary: #4F46E5;
+  --color-primary-light: #EEF2FF;
+  --color-primary-hover: #4338CA;
+  --color-secondary: #6366F1;
+  --color-accent: #8B5CF6;
+  --color-ai-accent: #8B5CF6;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-surface: #FFFFFF;
+  --color-muted-surface: #F8FAFC;
+  --color-border: #E2E8F0;
+  --color-text-main: #0F172A;
+  --color-text-strong: #0F172A;
+  --color-text-muted: #64748B;
+  --color-text-secondary: #64748B;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-text-main bg-muted-surface font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display text-text-main font-semibold tracking-tight;
+  }
+}
